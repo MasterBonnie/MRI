@@ -14,6 +14,7 @@ import transform_data
 
 # Path to where the OASIS dataset is located
 # If datageneration is true, this is also the location where the other dataset is created
+# NOTE: In principle this is the only thing that has to be changed
 path_to_data = "Y:\Datasets\OASIS I"
 
 path_to_data_ = os.path.join(path_to_data, "transformed")
@@ -52,7 +53,6 @@ class MRIDataset_2(Dataset):
         self.transform = transform
         self.length = length
         self.indices = pd.DataFrame([f"mri{n}.npy" for n in range(1,self.length+1)])
-
 
     def __len__(self):
         return self.length
