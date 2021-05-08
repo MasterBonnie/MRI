@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import training
 from dataset import get_dataset
-from neural_network_MRI import MRINetwork
+from neural_network_MRI import MRINetwork, MRIConvolutionalNetwork
 
 # Get cpu or gpu device for training.
 #device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -33,7 +33,7 @@ loss = torch.nn.MSELoss()
 # For adding graph in tensorboard
 masked, raw = next(iter(train_dataloader))
 
-model = MRINetwork(input_dim, hdims, loss)
+model = MRIConvolutionalNetwork(loss)
 model.double()
 
 optimizer = optim.Adam(model.parameters(), lr=lr)

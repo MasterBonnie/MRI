@@ -46,7 +46,48 @@ class MRINetwork(nn.Module):
         res = self.feedforward_network(x)
         return res
 
-
     def loss_function(self, x, y):
         y = self.flatten(y)
+        return self.loss(x,y)
+
+
+
+class MRIConvolutionalNetwork(nn.Module):
+    """ Convolutional Neural Network """
+
+    def __init__(self, loss):
+        super(MRIConvolutionalNetwork, self).__init__()
+
+        self.loss = loss
+        # We use three convolutional layers,
+        # each which does not increase the number of channels
+        # After each of these conv. layers we apply a non-linear transform
+        self.conv1 = nn.Conv2d(1, 3, 9,padding=4)
+        self.non_linear_1 = nn.ReLU()
+
+        self.conv2 = nn.Conv2d(3, 3, 5, padding=2)
+        self.non_linear_2 = nn.ReLU()
+
+        self.conv3 = nn.Conv2d(3, 1 , 5, padding=2)
+        self.non_linear_3 = nn.ReLU()
+
+    def __str__(self):
+        return " Convolutional denoising network "
+
+    def forward(self, x):
+        """
+        Forward pass through the network
+        """
+        x = self.conv1(x)
+        x = self.non_linear_1(x)
+
+        x = self.conv2(x)
+        x = self.non_linear_2(x)
+
+        x = self.conv3(x)
+        x = self.non_linear_3(x)
+        
+        return x
+    
+    def loss_function(self, x, y):
         return self.loss(x,y)

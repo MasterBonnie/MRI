@@ -14,10 +14,11 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
     # Training (for one epoch)
     #------------------------------------------------
     model.train()
-
+    print("Beginning with training...")
     running_total_loss = 0.0
     
     size = len(train_data.dataset)
+    nr_batches = len(train_data)
     for batch, (X, Y)  in enumerate(train_data):
         X, Y = X.to(device), Y.to(device)
 
@@ -31,6 +32,9 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
         optimizer.step()
 
         running_total_loss += loss.item()
+
+        # Print a progress bar
+        printProgressBar(batch, nr_batches)
 
         if batch % loss_freq == loss_freq-1:
             
@@ -49,19 +53,24 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
     # Validation
     #------------------------------------------------
     model.eval()
+    print("Beginning with evaluation...")
 
     size = len(validation_data.dataset)
+    nr_batches = len(validation_data)
+
     test_loss = 0
 
     with torch.no_grad():
-        for i, (X, Y) in enumerate(validation_data):
+        for batch, (X, Y) in enumerate(validation_data):
             X, Y = X.to(device), Y.to(device)
             pred = model(X)
             loss = model.loss_function(pred, Y)
 
             test_loss += loss.item()
 
-            if i == 0 and generate_image and epoch == 10:
+            printProgressBar(batch, nr_batches)
+
+            if batch == 0 and generate_image and epoch == 10:
                 n = min(X.size(0), 8)
 
                 img_grid_1 = torchvision.utils.make_grid(X[:n].cpu(), normalize=True)
@@ -81,3 +90,27 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
         else:
             print(f"Avg loss: {test_loss:>8f} \n")
 
+    print()
+
+
+def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+        https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
+        Call in a loop to create terminal progress bar
+        @params:
+            iteration   - Required  : current iteration (Int)
+            total       - Required  : total iterations (Int)
+            prefix      - Optional  : prefix string (Str)
+            suffix      - Optional  : suffix string (Str)
+            decimals    - Optional  : positive number of decimals in percent complete (Int)
+            length      - Optional  : character length of bar (Int)
+            fill        - Optional  : bar fill character (Str)
+            printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
