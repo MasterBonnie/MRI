@@ -47,6 +47,9 @@ def process_data(path_to_data, path_tfd, path_tmd, path_vfd, path_vmd, percentag
         path_vfd:       path where the validation full data is stored
         path_vmd:       path where the validation masked data is stored
     """
+    # Whether to create and store subimages of the actual images or not.
+    # see the function below, after the if statement
+    sub_image = True
 
     save_full_string = lambda n :  os.path.join(path_tfd, f'mri{n}.npy')
     save_mask_string = lambda n :  os.path.join(path_tmd, f"mri{n}.npy")
@@ -79,30 +82,102 @@ def process_data(path_to_data, path_tfd, path_tmd, path_vfd, path_vmd, percentag
     length_val = int(total_length*percentage_val_train_split)
     length_train = total_length - length_val
 
-    # Training data
-    for i in range(length_train):
-        images = io.imread(dirs[i]).astype(np.float64)
+    if sub_image:
 
-        for j in range(1, 160 + 1):
-            print(f"{i}, {j}", end="\r")
-            image = images[j-1]
-            masked_image = undersample_fourier_adjoint(undersample_fourier(image))
+        # We use less images, otherwise too much data
+        length_train = 3
+        length_val = 2
 
-            index = i*160 + j
+        # Parameters specifying the subimages
+        # See also the dataset.py file
+        sub_image_size = 40
+        stride = 24
 
-            np.save(save_full_string(index), image)
-            np.save(save_mask_string(index), masked_image)
+        # Index of the image
+        index = 1
 
-    # Test data
-    for i in range(length_train, length_train + length_val):
-        images = io.imread(dirs[i]).astype(np.float64)
+        # Training data
+        for i in range(length_train):
+            images = io.imread(dirs[i]).astype(np.float64)
 
-        for j in range(1, 160 + 1):
-            print(f"{i}, {j}", end="\r")
-            image = images[j-1]
-            masked_image = undersample_fourier_adjoint(undersample_fourier(image))
+            for j in range(1, 160 + 1):
+                print(f"{i}, {j}", end="\r")
 
-            index = (i - length_train)*160 + j
+                image = images[j-1]
+                masked_image = undersample_fourier_adjoint(undersample_fourier(image))
 
-            np.save(val_save_full_string(index), image)
-            np.save(val_save_mask_string(index), masked_image)
+                for k in range((image.shape[0] - sub_image_size)//stride):
+                    for l in range((image.shape[1] - sub_image_size)//stride):
+                        
+                        lower_index_x = k*stride
+                        upper_index_x = k*stride + sub_image_size
+                        lower_index_y = l*stride
+                        upper_index_y = l*stride + sub_image_size
+
+                        sub_image = image[lower_index_x:upper_index_x, lower_index_y:upper_index_y]
+                        sub_masked_image = masked_image[lower_index_x:upper_index_x, lower_index_y:upper_index_y]
+
+                        np.save(save_full_string(index), sub_image)
+                        np.save(save_mask_string(index), sub_masked_image)
+                        
+                        index += 1
+
+        print(f"Total number of training images: {index - 1}")
+        index = 1
+
+        # Test data
+        for i in range(length_train, length_train + length_val):
+            images = io.imread(dirs[i]).astype(np.float64)
+
+            for j in range(1, 160 + 1):
+                print(f"{i}, {j}", end="\r")
+                
+                image = images[j-1]
+                masked_image = undersample_fourier_adjoint(undersample_fourier(image))
+
+                for k in range((image.shape[0] - sub_image_size)//stride):
+                    for l in range((image.shape[1] - sub_image_size)//stride):
+                        
+                        lower_index_x = k*stride
+                        upper_index_x = k*stride + sub_image_size
+                        lower_index_y = l*stride
+                        upper_index_y = l*stride + sub_image_size
+
+                        sub_image = image[lower_index_x:upper_index_x, lower_index_y:upper_index_y]
+                        sub_masked_image = masked_image[lower_index_x:upper_index_x, lower_index_y:upper_index_y]
+
+                        np.save(val_save_full_string(index), sub_image)
+                        np.save(val_save_mask_string(index), sub_masked_image)
+
+                        index += 1
+
+        print(f"Total number of images: {index - 1}")
+
+    else:
+        # Training data
+        for i in range(length_train):
+            images = io.imread(dirs[i]).astype(np.float64)
+
+            for j in range(1, 160 + 1):
+                print(f"{i}, {j}", end="\r")
+                image = images[j-1]
+                masked_image = undersample_fourier_adjoint(undersample_fourier(image))
+
+                index = i*160 + j
+
+                np.save(save_full_string(index), image)
+                np.save(save_mask_string(index), masked_image)
+
+        # Test data
+        for i in range(length_train, length_train + length_val):
+            images = io.imread(dirs[i]).astype(np.float64)
+
+            for j in range(1, 160 + 1):
+                print(f"{i}, {j}", end="\r")
+                image = images[j-1]
+                masked_image = undersample_fourier_adjoint(undersample_fourier(image))
+
+                index = (i - length_train)*160 + j
+
+                np.save(val_save_full_string(index), image)
+                np.save(val_save_mask_string(index), masked_image)

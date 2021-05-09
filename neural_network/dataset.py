@@ -75,8 +75,8 @@ class MRIDataset_2(Dataset):
 
 def get_dataset(batch_size):
     # NOTE: You have to change this 32 and 7 here manually, dont really know for a good way to do this yet
-    training_data = DataLoader(MRIDataset_2(raw_path, masked_path, 160*32, ToTensor()), batch_size=batch_size, shuffle=True)
-    validation_data = DataLoader(MRIDataset_2(val_raw_path, val_masked_path, 160*7, ToTensor()), batch_size=batch_size, shuffle=True)
+    training_data = DataLoader(MRIDataset_2(raw_path, masked_path, 38880, ToTensor()), batch_size=batch_size, shuffle=True)
+    validation_data = DataLoader(MRIDataset_2(val_raw_path, val_masked_path, 25920, ToTensor()), batch_size=batch_size, shuffle=True)
 
     return training_data, validation_data
 
@@ -109,3 +109,21 @@ if __name__ == "__main__":
             pass
 
         transform_data.process_data(path_to_data, raw_path, masked_path, val_raw_path, val_masked_path)
+
+    else:
+        img = np.load(raw_path + "\mri80.npy")
+        
+        sub_image_size = 40
+        stride = 8
+
+        for i in range((img.shape[0] - sub_image_size)//stride):
+            for j in range((img.shape[1] - sub_image_size)//stride):
+                lower_index_x = i*stride
+                upper_index_x = i*stride + sub_image_size
+
+                lower_index_y = j*stride
+                upper_index_y = j*stride + sub_image_size
+                sub_image = img[lower_index_x:upper_index_x, lower_index_y:upper_index_y]
+
+                plt.imshow(sub_image)
+                plt.show()
