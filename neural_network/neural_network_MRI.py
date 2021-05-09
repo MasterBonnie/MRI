@@ -65,10 +65,10 @@ class MRIConvolutionalNetwork(nn.Module):
         self.conv1 = nn.Conv2d(1, 3, 9,padding=4)
         self.non_linear_1 = nn.ReLU()
 
-        self.conv2 = nn.Conv2d(3, 3, 5, padding=2)
+        self.conv2 = nn.Conv2d(3, 6, 5, padding=2)
         self.non_linear_2 = nn.ReLU()
 
-        self.conv3 = nn.Conv2d(3, 1 , 5, padding=2)
+        self.conv3 = nn.Conv2d(6, 1 , 5, padding=2)
         self.non_linear_3 = nn.ReLU()
 
     def __str__(self):

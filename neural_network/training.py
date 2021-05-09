@@ -45,7 +45,7 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
 
             else: 
                 loss, current = loss.item(), batch * len(X)
-                print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+                # print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
             running_total_loss = 0
     
@@ -53,6 +53,7 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
     # Validation
     #------------------------------------------------
     model.eval()
+    print()
     print("Beginning with evaluation...")
 
     size = len(validation_data.dataset)
@@ -70,12 +71,12 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
 
             printProgressBar(batch, nr_batches)
 
-            if batch == 0 and generate_image and epoch == 10:
+            if batch == 0 and generate_image:
                 n = min(X.size(0), 8)
 
                 img_grid_1 = torchvision.utils.make_grid(X[:n].cpu(), normalize=True)
-                img_grid_2 = torchvision.utils.make_grid(pred.view(X.size(0), 1, 256, 256)[:n].cpu(), normalize=True)
-                img_grid_3 = torchvision.utils.make_grid(Y.view(X.size(0), 1, 256, 256)[:n].cpu(), normalize=True)
+                img_grid_2 = torchvision.utils.make_grid(pred.view(X.size(0), 1, 40, 40)[:n].cpu(), normalize=True)
+                img_grid_3 = torchvision.utils.make_grid(Y.view(X.size(0), 1, 40, 40)[:n].cpu(), normalize=True)
 
                 writer.add_image(f'Ground truth images (epoch {epoch})', img_grid_3)
                 writer.add_image(f'Noisy images (epoch {epoch})', img_grid_1)

@@ -16,17 +16,14 @@ from neural_network_MRI import MRINetwork, MRIConvolutionalNetwork
 device = "cuda"
 print("Using {} device".format(device))
 
-batch_size = 128
+batch_size = 150
 lr = 1e-3
-epochs = 11
+epochs = 20
 
-save_loss = False
+save_loss = True
 generate_image = True
 
 train_dataloader, test_dataloader = get_dataset(batch_size)
-
-hdims = [256, 256]
-input_dim = 256*256
 
 loss = torch.nn.MSELoss()
 
