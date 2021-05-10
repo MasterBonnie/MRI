@@ -181,3 +181,44 @@ def process_data(path_to_data, path_tfd, path_tmd, path_vfd, path_vmd, percentag
 
                 np.save(val_save_full_string(index), image)
                 np.save(val_save_mask_string(index), masked_image)
+
+def create_test_data(path_to_data, path_fd, path_md):
+    """
+        Saves some images in the full format, not the sub-imaged version as the one above
+        Not in a train-validation split, because this will only be used for validation of an already trained 
+        network
+
+        Params:
+            path_to_data:   Path to the MRI data
+            path_fd:        Path where the full images are stored
+            path_md:        Path where the masked images are stored
+    """
+    save_full_string = lambda n :  os.path.join(path_fd, f'mri{n}.npy')
+    save_mask_string = lambda n :  os.path.join(path_md, f"mri{n}.npy")
+
+    dir = path_to_data
+    dirs = []
+    
+    # Filter out all the desired images 
+    r = re.compile("disc.*MPRAGE.*SUBJ_111.*OAS1.*\.img")
+
+    for path, _, files in os.walk(dir):
+        for file in files:
+            temp = os.path.join(path, file)
+            if r.search(temp):
+                dirs.append(os.path.join(path, file)) 
+
+    length = 1
+
+    for i in range(length):
+        images = io.imread(dirs[i]).astype(np.float64)
+
+        for j in range(1, 160 + 1):
+            print(f"{i}, {j}", end="\r")
+            image = images[j-1]
+            masked_image = undersample_fourier_adjoint(undersample_fourier(image))
+
+            index = i*160 + j
+
+            np.save(save_full_string(index), image)
+            np.save(save_mask_string(index), masked_image)

@@ -8,7 +8,7 @@ from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
 
 import training
-from dataset import get_dataset
+from dataset import get_dataset, get_dataset_full_image
 from neural_network_MRI import MRINetwork, MRIConvolutionalNetwork
 
 # Get cpu or gpu device for training.
@@ -16,9 +16,9 @@ from neural_network_MRI import MRINetwork, MRIConvolutionalNetwork
 device = "cuda"
 print("Using {} device".format(device))
 
-batch_size = 150
-lr = 1e-3
-epochs = 20
+batch_size = 264
+lr = 2e-3
+epochs = 10
 
 save_loss = True
 generate_image = True
@@ -70,5 +70,13 @@ for i in range(epochs):
     print(f"Starting epoch {i}")
     training.training_loop(model, train_dataloader, test_dataloader, device, optimizer,
                                 writer, i, save_loss, generate_image)
+
+# Check images after training, i.e. fully reconstruct them
+# Grab random data
+full_data = get_dataset_full_image(batch_size)
+masked, raw = next(iter(full_data))
+
+model.reconstruct_full_image(raw, masked, writer, device)
+
 
  

@@ -1,3 +1,4 @@
+from genericpath import exists
 import os
 import torch
 import pandas as pd
@@ -21,12 +22,14 @@ path_to_data_ = os.path.join(path_to_data, "transformed")
 
 training = "training"
 validation = "validation"
+validation_full = "denoise_validation"
 
 full = "full"
 masked = "masked"
 
 training_path = os.path.join(path_to_data_, training)
 validation_path = os.path.join(path_to_data_, validation)
+validation_full_path = os.path.join(path_to_data_, validation_full)
 
 # Path to where the training portion of the data is stored
 raw_path = os.path.join(training_path, full)
@@ -35,6 +38,10 @@ masked_path = os.path.join(training_path, masked)
 # Path to where the validation portion of the data is stored
 val_raw_path = os.path.join(validation_path, full)
 val_masked_path = os.path.join(validation_path, masked)
+
+# Path where the complete images used for validation are stored
+val_full_raw_path = os.path.join(validation_full_path, full)
+val_full_masked_path = os.path.join(validation_full_path, masked)
 
 def show_image(img):
     plt.imshow(img, cmap="gray")
@@ -74,56 +81,49 @@ class MRIDataset_2(Dataset):
         return masked_images, raw_images
 
 def get_dataset(batch_size):
-    # NOTE: You have to change this 32 and 7 here manually, dont really know for a good way to do this yet
+    # NOTE: You have to change the total datasize manually, dont know of a good way for this yet
     training_data = DataLoader(MRIDataset_2(raw_path, masked_path, 38880, ToTensor()), batch_size=batch_size, shuffle=True)
     validation_data = DataLoader(MRIDataset_2(val_raw_path, val_masked_path, 25920, ToTensor()), batch_size=batch_size, shuffle=True)
 
     return training_data, validation_data
 
+def get_dataset_full_image(batch_size):
+    data = DataLoader(MRIDataset_2(val_full_raw_path, val_full_masked_path, 160, ToTensor()), batch_size=batch_size, shuffle=True)
+
+    return data
+
 if __name__ == "__main__":
 
     # NOTE: datageneration is slow, make sure this is only run once
     # see the if name is main part below
-    datageneration = True
+    data_generation = False
+    val_data_generation = False
 
-    if datageneration:
+    # Make the folders if they are not yet made
+    try:
+        os.makedirs(path_to_data_, exist_ok=True)
+    except OSError as error:
+        pass
 
-        # Make the folders if they are not yet made
-        try:
-            os.mkdir(path_to_data_)
-        except OSError as error:
-            pass
+    try:
+        os.makedirs(training_path, exist_ok=True)
+        os.makedirs(validation_path, exist_ok=True)
+        os.makedirs(validation_full_path, exist_ok=True)
+    except OSError as error:
+        pass
 
-        try:
-            os.mkdir(training_path)
-            os.mkdir(validation_path)
-        except OSError as error:
-            pass
+    try:
+        os.makedirs(raw_path, exist_ok=True)
+        os.makedirs(masked_path, exist_ok=True)
+        os.makedirs(val_raw_path, exist_ok=True)
+        os.makedirs(val_masked_path, exist_ok=True)
+        os.makedirs(val_full_raw_path, exist_ok=True)
+        os.makedirs(val_full_masked_path, exist_ok=True)
+    except OSError as error: 
+        pass
 
-        try:
-            os.mkdir(raw_path)
-            os.mkdir(masked_path)
-            os.mkdir(val_raw_path)
-            os.mkdir(val_masked_path)
-        except OSError as error: 
-            pass
-
+    if data_generation:
         transform_data.process_data(path_to_data, raw_path, masked_path, val_raw_path, val_masked_path)
 
-    else:
-        img = np.load(raw_path + "\mri80.npy")
-        
-        sub_image_size = 40
-        stride = 8
-
-        for i in range((img.shape[0] - sub_image_size)//stride):
-            for j in range((img.shape[1] - sub_image_size)//stride):
-                lower_index_x = i*stride
-                upper_index_x = i*stride + sub_image_size
-
-                lower_index_y = j*stride
-                upper_index_y = j*stride + sub_image_size
-                sub_image = img[lower_index_x:upper_index_x, lower_index_y:upper_index_y]
-
-                plt.imshow(sub_image)
-                plt.show()
+    if val_data_generation:
+        transform_data.create_test_data(path_to_data, val_full_raw_path, val_full_masked_path)

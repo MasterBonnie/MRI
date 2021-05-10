@@ -34,7 +34,7 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
         running_total_loss += loss.item()
 
         # Print a progress bar
-        printProgressBar(batch, nr_batches)
+        printProgressBar(batch + 1, nr_batches)
 
         if batch % loss_freq == loss_freq-1:
             
@@ -69,9 +69,9 @@ def training_loop(model, train_data, validation_data, device, optimizer, writer,
 
             test_loss += loss.item()
 
-            printProgressBar(batch, nr_batches)
+            printProgressBar(batch + 1, nr_batches)
 
-            if batch == 0 and generate_image:
+            if batch == 0 and generate_image and epoch == 4:
                 n = min(X.size(0), 8)
 
                 img_grid_1 = torchvision.utils.make_grid(X[:n].cpu(), normalize=True)
