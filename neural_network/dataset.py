@@ -82,7 +82,7 @@ class MRIDataset_2(Dataset):
 
 def get_dataset(batch_size):
     # NOTE: You have to change the total datasize manually, dont know of a good way for this yet
-    training_data = DataLoader(MRIDataset_2(raw_path, masked_path, 38880, ToTensor()), batch_size=batch_size, shuffle=True)
+    training_data = DataLoader(MRIDataset_2(raw_path, masked_path, 51840, ToTensor()), batch_size=batch_size, shuffle=True)
     validation_data = DataLoader(MRIDataset_2(val_raw_path, val_masked_path, 25920, ToTensor()), batch_size=batch_size, shuffle=True)
 
     return training_data, validation_data
@@ -96,8 +96,8 @@ if __name__ == "__main__":
 
     # NOTE: datageneration is slow, make sure this is only run once
     # see the if name is main part below
-    data_generation = False
-    val_data_generation = False
+    data_generation = True
+    val_data_generation = True
 
     # Make the folders if they are not yet made
     try:

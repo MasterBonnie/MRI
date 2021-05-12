@@ -9,7 +9,7 @@ import re
 """
 
 # Create the mask for undersampling the data 
-mask_indices = np.loadtxt("..\mask1.txt", dtype=np.int)
+mask_indices = np.loadtxt(r"..\3_5fold_mask.txt", dtype=np.int)
 
 mask = np.zeros((256, 256))
 mask[mask_indices[:,0], mask_indices[:,1]] = 1
@@ -85,7 +85,7 @@ def process_data(path_to_data, path_tfd, path_tmd, path_vfd, path_vmd, percentag
     if sub_image:
 
         # We use less images, otherwise too much data
-        length_train = 3
+        length_train = 4
         length_val = 2
 
         # Parameters specifying the subimages

@@ -1,14 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import LogNorm
-
-from numba import njit
-from skimage import data
-from skimage.util import img_as_ubyte
+from skimage import io
 
 import torch
 from torch import nn
 import torchvision
+
+# This is very ugly im sorry 
+import sys
+# insert at 1, 0 is the script path (or '' in REPL)
+sys.path.insert(1, r"C:\Users\daan\Desktop\TUe\Master year 1\Master Math\Inverse Problems and Imaging\report\mri_regularization")
+
+import update_method, cost
 
 class MRINetwork(nn.Module):
     """ Neural network for MRI image processing """
@@ -61,16 +64,16 @@ class MRIConvolutionalNetwork(nn.Module):
         # We use three convolutional layers,
         # each which does not increase the number of channels
         # After each of these conv. layers we apply a non-linear transform
-        self.conv1 = nn.Conv2d(1, 3, 9,padding=4)
+        self.conv1 = nn.Conv2d(1, 4, 9,padding=4)
         self.non_linear_1 = nn.ReLU()
 
-        self.conv2 = nn.Conv2d(3, 6, 5, padding=2)
+        self.conv2 = nn.Conv2d(4, 6, 5, padding=2)
         self.non_linear_2 = nn.ReLU()
 
-        self.conv3 = nn.Conv2d(6, 3, 5, padding=2)
+        self.conv3 = nn.Conv2d(6, 4, 5, padding=2)
         self.non_linear_3 = nn.ReLU()
 
-        self.conv4 = nn.Conv2d(3, 1 , 5, padding=2)
+        self.conv4 = nn.Conv2d(4, 1 , 5, padding=2)
         self.non_linear_4 = nn.ReLU()
 
     def __str__(self):
@@ -111,9 +114,11 @@ class MRIConvolutionalNetwork(nn.Module):
                 self.mask[lower_index_x:upper_index_x, lower_index_y:upper_index_y] += 1
 
     def reconstruct_full_image(self, full_img_batch, noisy_img_batch, writer, device, sub_image_size=40, stride=12):
-
+        """
+            Reconstruct images using only the neural network
+        """
         n = min(full_img_batch.size(0), 8)
-        result = torch.zeros(8,1,256,256)
+        result = torch.zeros(n,1,256,256)
 
         self._calculate_mask(sub_image_size, stride)
 
@@ -148,3 +153,50 @@ class MRIConvolutionalNetwork(nn.Module):
         img_grid = torchvision.utils.make_grid(comparison.cpu(), nrows=2)
         writer.add_image(f"Original images and neural network denoising", img_grid) 
         writer.close()
+
+        # If we want to further use the reconstructed images
+        return result
+
+
+    def reconstruct_full_image_reg(self, full_img_batch, noisy_img_batch, writer, device, sub_image_size=40, stride=12):
+        """
+            Reconstruct images using first the neural network, and then perform gradient descent on a least squares problem
+            using the reconstruction as initial guess
+        """
+
+        n = min(full_img_batch.size(0), 8)
+        result = torch.zeros(n,1,256,256)
+
+        # We first pass it through the neural network to obtained denoised images
+        denoised_nn_images = self.reconstruct_full_image(full_img_batch, noisy_img_batch, writer, device, sub_image_size, stride)
+
+        # We then run gradient descent on each of these images for several iterations
+        # Parameters for the gradient descent
+        learning_rate = 3e-5
+        max_iter = 3000
+        lam = 0.04
+        alpha = 0.02
+
+        for i in range(denoised_nn_images.size(0)):
+            fourier_trans = cost.undersample_fourier(full_img_batch[i,0])
+            img = denoised_nn_images[i,0]
+            img = img/np.max(np.abs(img))
+
+            result[i, 0] = update_method.gradient_descent(fourier_trans, lam, alpha, max_iter, learning_rate, img)
+            
+            # Normalize for Tensorboard, otherwise images wont display correctly
+            result[i, 0] /= torch.max(result[i, 0])
+            full_img_batch[i, 0] /= torch.max(full_img_batch[i, 0])
+
+        comparison = torch.cat([full_img_batch[:n],
+                                result])
+    
+        img_grid = torchvision.utils.make_grid(comparison.cpu(), nrows=2)
+        writer.add_image(f"Original images and neural network + reg denoising", img_grid) 
+        writer.close()
+
+        return result
+
+
+if __name__ == "__main__":
+    pass

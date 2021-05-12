@@ -17,8 +17,8 @@ device = "cuda"
 print("Using {} device".format(device))
 
 batch_size = 264
-lr = 2e-3
-epochs = 10
+lr = 2.5e-3
+epochs = 20
 
 save_loss = True
 generate_image = True
