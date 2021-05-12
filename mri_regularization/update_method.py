@@ -50,10 +50,11 @@ def gradient_descent(y, lam, alpha=0.02, max_iter = 50, learning_rate = 1e-4, in
         m = optimizer.update(i, m, g)
         g = gradient(m, y, lam)
 
-        if i % 100 == 0:
+        if i % 1000 == 0:
             cost_val = cost(m, y, lam)
-            print(f"Cost at iteration {i} is {cost_val}.")
-
+            print(f"Cost at iteration {i} is {cost_val}.", end = "\r")
+    print()
+    
     return m
 
 
@@ -80,7 +81,7 @@ class AdamOptimizer():
         m_corr = self.m/(1-self.beta1**t)
         v_corr = self.v/(1-self.beta2**t)
 
-        ## update weights and biases
+        ## update
         input -= self.eta*(m_corr/(np.sqrt(v_corr)+self.epsilon))
         return input
 

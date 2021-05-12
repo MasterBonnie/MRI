@@ -11,7 +11,7 @@ from numba import njit
 epsilon = 1e-8
 
 # Create the mask for undersampling the data 
-mask_indices = np.loadtxt(r"..\3_5fold_mask.txt", dtype=np.int)
+mask_indices = np.loadtxt(r"..\5fold_mask.txt", dtype=np.int)
 
 mask = np.zeros((256, 256))
 mask[mask_indices[:,0], mask_indices[:,1]] = 1
