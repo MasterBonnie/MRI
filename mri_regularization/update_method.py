@@ -18,17 +18,20 @@ def gradient_descent(y, lam, max_iter = 50, learning_rate = 1e-4, init=None):
         Performs regular gradient descent on the given cost function
     """
 
-    method = "l1"
+    method = "combi"
 
     if method == "TV":
-        gradient = grad_TV_denoise_norm
-        cost = TV_denoise_norm
+        gradient = gradient_cost_TV
+        cost = cost_TV
     elif method == "tik":
         gradient = gradient_cost_tik
         cost = cost_tik
     elif method == "l1":
         gradient = gradient_cost_l1
         cost = cost_l1
+    elif method == "combi":
+        gradient = gradient_cost_combination
+        cost = cost_combination
     else:
         print("ERROR, no method chosen")
         return
@@ -86,17 +89,20 @@ def conjugate_gradient_descent(y, lam, max_iter=50, alpha=1e-4, beta=0.6, init=N
         Performs conjugate gradient descent on the given cost function
     """
 
-    method = "TV"
+    method = "combi"
 
     if method == "TV":
-        gradient = grad_TV_denoise_norm
-        cost = TV_denoise_norm
+        gradient = gradient_cost_TV
+        cost = cost_TV
     elif method == "tik":
         gradient = gradient_cost_tik
         cost = cost_tik
     elif method == "l1":
         gradient = gradient_cost_l1
         cost = cost_l1
+    elif method == "combi":
+        gradient = gradient_cost_combination
+        cost = cost_combination
     else:
         print("ERROR, no method chosen")
         return
@@ -138,12 +144,13 @@ if __name__  == "__main__":
     #--------------------------------------------------
     
     # Difficult image
-    # filename_training = "Y:\Datasets\OASIS I\disc1\OAS1_0001_MR1\PROCESSED\MPRAGE\SUBJ_111\OAS1_0001_MR1_mpr_n4_anon_sbj_111.img"    
-    # img = io.imread(filename_training)
-    # img = img[60]
+    filename_training = "Y:\Datasets\OASIS I\disc1\OAS1_0001_MR1\PROCESSED\MPRAGE\SUBJ_111\OAS1_0001_MR1_mpr_n4_anon_sbj_111.img"    
+    img = io.imread(filename_training)
+    img = img[60]
     
     # Easy image
-    img = img_as_ubyte(data.brain()[3])
+    # img = img_as_ubyte(data.brain()[3])
+
     img = img/np.max(np.abs(img))
 
     # plt.imshow(img, cmap="gray")
@@ -158,14 +165,15 @@ if __name__  == "__main__":
     # Standard inverse image
     inverse_img = np.abs(undersample_fourier_adjoint(y))
     #--------------------------------------------------
-    learning_rate = 1e-5
+    learning_rate = 3e-5
 
-    max_iter = 40
+    max_iter = 2500
     lam = 0.04
     
-    inverse_img_grad = conjugate_gradient_descent(y, lam, max_iter, alpha=0.01, beta=0.6, init=inverse_img)
-    # init = inverse_img.copy()
-    # inverse_img_grad = gradient_descent(y, lam, max_iter, learning_rate, init)
+    #inverse_img_grad = conjugate_gradient_descent(y, lam, max_iter, alpha=0.01, beta=0.6, init=inverse_img)
+    
+    init = inverse_img.copy()
+    inverse_img_grad = gradient_descent(y, lam, max_iter, learning_rate, init)
 
     fig,ax = plt.subplots(1,3)
 
