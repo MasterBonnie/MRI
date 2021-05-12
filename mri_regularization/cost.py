@@ -11,7 +11,7 @@ from numba import njit
 epsilon = 1e-8
 
 # Create the mask for undersampling the data 
-mask_indices = np.loadtxt("..\mask1.txt", dtype=np.int)
+mask_indices = np.loadtxt(r"..\3_5fold_mask.txt", dtype=np.int)
 
 mask = np.zeros((256, 256))
 mask[mask_indices[:,0], mask_indices[:,1]] = 1
@@ -97,13 +97,13 @@ def cost_TV(m, y, lam):
 def gradient_cost_TV(m, y, lam):
     return undersample_fourier_adjoint(undersample_fourier(m) - y) + lam*grad_l1_DGT(m)
 
-def cost_combination(m, y, lam, alpha=0.04):
+def cost_combination(m, y, lam, alpha=0.02):
     """
         Adds both the TV regularization and the L1 regularization, through the extra coefficient alpha
     """
     return 0.5*np.linalg.norm(undersample_fourier_adjoint(undersample_fourier(m) - y)) + lam * l1_DGT(m) + alpha * np.sum(np.abs(m))
 
-def gradient_cost_combination(m, y, lam, alpha=0.04):
+def gradient_cost_combination(m, y, lam, alpha=0.02):
     """
         See cost_combination
     """

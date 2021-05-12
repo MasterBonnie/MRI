@@ -13,7 +13,7 @@ from cost import *
 
 epsilon = 1e-10
 
-def gradient_descent(y, lam, max_iter = 50, learning_rate = 1e-4, init=None):
+def gradient_descent(y, lam, alpha=0.02, max_iter = 50, learning_rate = 1e-4, init=None):
     """
         Performs regular gradient descent on the given cost function
     """
@@ -167,13 +167,14 @@ if __name__  == "__main__":
     #--------------------------------------------------
     learning_rate = 3e-5
 
-    max_iter = 2500
+    max_iter = 3500
     lam = 0.04
+    alpha = 0.02
     
     #inverse_img_grad = conjugate_gradient_descent(y, lam, max_iter, alpha=0.01, beta=0.6, init=inverse_img)
     
     init = inverse_img.copy()
-    inverse_img_grad = gradient_descent(y, lam, max_iter, learning_rate, init)
+    inverse_img_grad = gradient_descent(y, lam, alpha, max_iter, learning_rate, init)
 
     fig,ax = plt.subplots(1,3)
 
