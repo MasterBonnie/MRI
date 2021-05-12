@@ -17,11 +17,12 @@ device = "cuda"
 print("Using {} device".format(device))
 
 batch_size = 264
-lr = 2.5e-3
-epochs = 20
+lr = 3e-3
+epochs = 10
 
 save_loss = True
 generate_image = True
+save_model = True
 
 train_dataloader, test_dataloader = get_dataset(batch_size)
 
@@ -35,7 +36,7 @@ model.double()
 
 optimizer = optim.Adam(model.parameters(), lr=lr)
 
-if generate_image or save_loss:
+if generate_image or save_loss or save_model:
 
     # Name of the experiment
     name = "MRI_test"
@@ -71,12 +72,18 @@ for i in range(epochs):
     training.training_loop(model, train_dataloader, test_dataloader, device, optimizer,
                                 writer, i, save_loss, generate_image)
 
+# Done with training, now we first save the model in the correct folder
+model.eval()
+if save_model:
+    torch.save(model, os.path.join(path, "model.pth"))
+
 # Check images after training, i.e. fully reconstruct them
 # Grab random data
 full_data = get_dataset_full_image(batch_size)
+# masked, raw = next(iter(full_data))
+
+# model.reconstruct_full_image(raw, masked, writer, device)
+
 masked, raw = next(iter(full_data))
 
-model.reconstruct_full_image(raw, masked, writer, device)
-
-
- 
+model.reconstruct_full_image_reg(raw, masked, writer, device)
