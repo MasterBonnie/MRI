@@ -25,6 +25,18 @@ def undersample_fourier(img):
 
     return fourier_img[mask_indices[:,0], mask_indices[:,1]]
 
+def undersample_fourier_full(img):
+    """
+        Returns the full zero-filled fourier domain
+    """
+    fourier_img = np.fft.fftshift(np.fft.fft2(img, norm="ortho"))
+    return mask*fourier_img
+    
+def fourier(img):
+    """
+        Returns the full fourier transform of the input
+    """
+    return np.fft.fftshift(np.fft.fft2(img, norm="ortho"))
 
 def undersample_fourier_adjoint(x):
     """
@@ -181,6 +193,74 @@ def process_data(path_to_data, path_tfd, path_tmd, path_vfd, path_vmd, percentag
 
                 np.save(val_save_full_string(index), image)
                 np.save(val_save_mask_string(index), masked_image)
+
+def create_k_space_data(path_to_data, path_tfd, path_tmd, path_vfd, path_vmd, percentage_val_train_split=0.2):
+    """
+        Saves the k-space data in full format
+    """
+    save_output_string = lambda n :  os.path.join(path_tfd, f'mri{n}.npy')
+    save_input_string = lambda n :  os.path.join(path_tmd, f"mri{n}.npy")
+
+    val_save_output_string = lambda n :  os.path.join(path_vfd, f'mri{n}.npy')
+    val_save_input_string = lambda n :  os.path.join(path_vmd, f"mri{n}.npy")
+
+    print("Saving data to: ")
+    print(save_output_string(0))
+    print(save_input_string(0))
+    print(val_save_output_string(0))
+    print(val_save_input_string(0))
+    print()
+
+    dir = path_to_data
+    dirs = []
+
+    # Filter out all the desired images 
+    r = re.compile("disc.*MPRAGE.*SUBJ_111.*OAS1.*\.img")
+
+    # Find the desired paths to the images
+    for path, _, files in os.walk(dir):
+        for file in files:
+            temp = os.path.join(path, file)
+            if r.search(temp):
+                dirs.append(os.path.join(path, file))   
+
+    # Determine which ones to use for training/validation
+    total_length = len(dirs)
+    length_val = int(total_length*percentage_val_train_split)
+    length_train = total_length - length_val
+
+    # Training data
+    for i in range(length_train):
+        images = io.imread(dirs[i]).astype(np.float64)
+
+        for j in range(1, 160 + 1):
+            print(f"{i}, {j}", end="\r")
+            image = images[j-1]
+            fourier_img = fourier(image)
+            masked_fourier_image = undersample_fourier_full(image)
+
+            index = i*160 + j
+
+            np.save(save_input_string(index), masked_fourier_image)
+            np.save(save_output_string(index), fourier_img)
+
+    # Test data
+    for i in range(length_train, length_train + length_val):
+        images = io.imread(dirs[i]).astype(np.float64)
+
+        for j in range(1, 160 + 1):
+            print(f"{i}, {j}", end="\r")
+            image = images[j-1]
+            fourier_img = fourier(image)
+            masked_fourier_image = undersample_fourier_full(image)
+
+            index = (i - length_train)*160 + j
+
+            np.save(save_input_string(index), masked_fourier_image)
+            np.save(save_output_string(index), fourier_img)
+
+    print(f"Total training: {160*length_train}")
+    print(f"Total validation: {160*length_val}")
 
 def create_test_data(path_to_data, path_fd, path_md):
     """

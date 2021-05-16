@@ -17,8 +17,11 @@ import transform_data
 # If datageneration is true, this is also the location where the other dataset is created
 # NOTE: In principle this is the only thing that has to be changed
 path_to_data = "Y:\Datasets\OASIS I"
+# Putting the data on your SSD is much faster, unsurprsingly
+path_to_data_storage = r"C:\Users\daan\Desktop\datasets\MRI"
 
-path_to_data_ = os.path.join(path_to_data, "transformed")
+path_to_data_ = os.path.join(path_to_data_storage, "transformed")
+path_to_data_k = os.path.join(path_to_data_storage, "kspace")
 
 training = "training"
 validation = "validation"
@@ -29,15 +32,21 @@ masked = "masked"
 
 training_path = os.path.join(path_to_data_, training)
 validation_path = os.path.join(path_to_data_, validation)
+training_path_k = os.path.join(path_to_data_k, training)
+validation_path_k = os.path.join(path_to_data_k, validation)
 validation_full_path = os.path.join(path_to_data_, validation_full)
 
 # Path to where the training portion of the data is stored
 raw_path = os.path.join(training_path, full)
 masked_path = os.path.join(training_path, masked)
+raw_path_k = os.path.join(training_path_k, full)
+masked_path_k = os.path.join(training_path_k, masked)
 
 # Path to where the validation portion of the data is stored
 val_raw_path = os.path.join(validation_path, full)
 val_masked_path = os.path.join(validation_path, masked)
+val_raw_path_k = os.path.join(validation_path_k, full)
+val_masked_path_k = os.path.join(validation_path_k, masked)
 
 # Path where the complete images used for validation are stored
 val_full_raw_path = os.path.join(validation_full_path, full)
@@ -81,9 +90,9 @@ class MRIDataset_2(Dataset):
         return masked_images, raw_images
 
 def get_dataset(batch_size):
-    # NOTE: You have to change the total datasize manually, dont know of a good way for this yet
-    training_data = DataLoader(MRIDataset_2(raw_path, masked_path, 51840, ToTensor()), batch_size=batch_size, shuffle=True)
-    validation_data = DataLoader(MRIDataset_2(val_raw_path, val_masked_path, 25920, ToTensor()), batch_size=batch_size, shuffle=True)
+    # NOTE: You have to change the total datasize manually, dont know of a good way for this yet (103680, 38880)
+    training_data = DataLoader(MRIDataset_2(raw_path, masked_path, 103680, ToTensor()), batch_size=batch_size, shuffle=True)
+    validation_data = DataLoader(MRIDataset_2(val_raw_path, val_masked_path, 38880, ToTensor()), batch_size=batch_size, shuffle=True)
 
     return training_data, validation_data
 
@@ -92,22 +101,33 @@ def get_dataset_full_image(batch_size):
 
     return data
 
+def get_k_space_dataset(batch_size):
+    # NOTE: You have to change the total datasize manually, dont know of a good way for this yet (103680, 38880)
+    training_data = DataLoader(MRIDataset_2(raw_path_k, masked_path_k, 5120, ToTensor()), batch_size=batch_size, shuffle=True)
+    validation_data = DataLoader(MRIDataset_2(val_raw_path_k, val_masked_path_k, 1120, ToTensor()), batch_size=batch_size, shuffle=True)
+
+    return training_data, validation_data
+
 if __name__ == "__main__":
 
     # NOTE: datageneration is slow, make sure this is only run once
     # see the if name is main part below
-    data_generation = True
-    val_data_generation = True
+    data_generation = False
+    val_data_generation = False
+    data_generation_k = True
 
     # Make the folders if they are not yet made
     try:
         os.makedirs(path_to_data_, exist_ok=True)
+        os.makedirs(path_to_data_k, exist_ok=True)
     except OSError as error:
         pass
 
     try:
         os.makedirs(training_path, exist_ok=True)
         os.makedirs(validation_path, exist_ok=True)
+        os.makedirs(training_path_k, exist_ok=True)
+        os.makedirs(validation_path_k, exist_ok=True)
         os.makedirs(validation_full_path, exist_ok=True)
     except OSError as error:
         pass
@@ -117,6 +137,10 @@ if __name__ == "__main__":
         os.makedirs(masked_path, exist_ok=True)
         os.makedirs(val_raw_path, exist_ok=True)
         os.makedirs(val_masked_path, exist_ok=True)
+        os.makedirs(raw_path_k, exist_ok=True)
+        os.makedirs(masked_path_k, exist_ok=True)
+        os.makedirs(val_raw_path_k, exist_ok=True)
+        os.makedirs(val_masked_path_k, exist_ok=True)
         os.makedirs(val_full_raw_path, exist_ok=True)
         os.makedirs(val_full_masked_path, exist_ok=True)
     except OSError as error: 
@@ -127,3 +151,6 @@ if __name__ == "__main__":
 
     if val_data_generation:
         transform_data.create_test_data(path_to_data, val_full_raw_path, val_full_masked_path)
+
+    if data_generation_k:
+        transform_data.create_k_space_data(path_to_data, raw_path_k, masked_path_k, val_raw_path_k, val_masked_path_k)
