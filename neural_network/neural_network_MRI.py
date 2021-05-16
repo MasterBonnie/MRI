@@ -57,22 +57,28 @@ class MRINetwork(nn.Module):
 class MRIConvolutionalNetwork(nn.Module):
     """ Convolutional Neural Network """
 
-    def __init__(self, loss):
+    def __init__(self, device):
         super(MRIConvolutionalNetwork, self).__init__()
 
-        self.loss = loss
+        self.build_loss()
+        self.device = device
 
-        self.conv1 = nn.Conv2d(1, 6, 9,padding=4)
-        self.non_linear_1 = nn.ReLU()
-
-        self.conv2 = nn.Conv2d(6, 20, 3, padding=1)
-        self.non_linear_2 = nn.ReLU()
-
-        self.conv3 = nn.Conv2d(20, 6, 3, padding=1)
-        self.non_linear_3 = nn.ReLU()
-
-        self.conv4 = nn.Conv2d(6, 1 , 5, padding=2)
-        self.non_linear_4 = nn.ReLU()
+        self.network = nn.Sequential(
+            nn.Conv2d(1, 16, 9,padding=4),
+            # nn.BatchNorm2d(4),
+            nn.ReLU(),
+            nn.Conv2d(16, 32, 5, padding=2),
+            # nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 5, padding=2),
+            nn.ReLU(),  
+            nn.Conv2d(32, 16, 3, padding=1),
+            # nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.Conv2d(16, 1, 3, padding=1),
+            # nn.BatchNorm2d(1),
+            nn.ReLU()
+        )
 
     def __str__(self):
         return " Convolutional denoising network "
@@ -81,22 +87,20 @@ class MRIConvolutionalNetwork(nn.Module):
         """
         Forward pass through the network
         """
-        x = self.conv1(x)
-        x = self.non_linear_1(x)
+        return self.network(x)
 
-        x = self.conv2(x)
-        x = self.non_linear_2(x)
+    def build_loss(self):
+        self.MSE_loss = nn.MSELoss()
+        self.L1_reg = nn.L1Loss(reduction="sum")
+        self.lam = 1e-3
 
-        x = self.conv3(x)
-        x = self.non_linear_3(x)
-
-        x = self.conv4(x)
-        x = self.non_linear_4(x)
-
-        return x
-    
     def loss_function(self, x, y):
-        return self.loss(x,y)
+        """
+            X is prediction, Y is true value
+        """
+        # temp = torch.zeros(x.size()).to(self.device)
+        return self.MSE_loss(x,y) 
+        # + self.lam * self.L1_reg(temp, x)
 
     def _calculate_mask(self, sub_image_size=40, stride=12):
         self.mask = torch.zeros(256,256)
