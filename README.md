@@ -1,1 +1,2 @@
-Repo for MRI project for Inverse Problems in Imaging
+# MRI and Deep Learning
+Repository containing code for a project about inverse problems in imaging. It combines ideas from Compressed Sensing MRI and Deep Learing to augment the inverse problem of MRI, incorporating a data-driven approach. Its based (primarily) on the papers [(1)]( 10.1002/mrm.21391) and [(2)](10.1109/ISBI.2016.7493320). The masks are created using code from [this repository](https://github.com/sifeluga/PDvdi/blob/master/PDvdiSampler.py).
