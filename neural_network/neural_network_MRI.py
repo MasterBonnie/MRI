@@ -13,47 +13,6 @@ sys.path.insert(1, r"C:\Users\daan\Desktop\TUe\Master year 1\Master Math\Inverse
 
 import update_method, cost
 
-class MRINetwork(nn.Module):
-    """ Neural network for MRI image processing """
-
-    def __init__(self, input_dim, hdims, loss):
-
-        super(MRINetwork, self).__init__()
-        
-        self.input_dim = input_dim
-
-        # Variable defining the encoder / decoder network
-        layers = []
-
-        layers.append(nn.Linear(input_dim, hdims[0]))
-        layers.append(nn.ReLU())
-
-        for i in range(len(hdims) - 1):
-            layers.append(nn.Linear(hdims[i], hdims[i+1]))
-            layers.append(nn.ReLU())
-
-        layers.append(nn.Linear(hdims[-1], input_dim))
-        self.feedforward_network = nn.Sequential(*layers)
-        self.flatten = nn.Flatten()
-
-        self.loss = loss
-
-    def __str__(self):
-        return " ReLU denoising network "
-
-    def forward(self, x):
-        """
-        Forward pass through the network
-        """
-        x = self.flatten(x)
-        res = self.feedforward_network(x)
-        return res
-
-    def loss_function(self, x, y):
-        y = self.flatten(y)
-        return self.loss(x,y)
-
-
 class MRIConvolutionalNetwork(nn.Module):
     """ Convolutional Neural Network """
 
@@ -64,19 +23,13 @@ class MRIConvolutionalNetwork(nn.Module):
         self.device = device
 
         self.network = nn.Sequential(
-            nn.Conv2d(1, 16, 9,padding=4),
-            # nn.BatchNorm2d(4),
+            nn.Conv2d(1, 40, 9, padding=4),
+            # nn.BatchNorm2d(10),
             nn.ReLU(),
-            nn.Conv2d(16, 32, 5, padding=2),
-            # nn.BatchNorm2d(16),
+            nn.Conv2d(40, 32, 5, padding=2),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.Conv2d(32, 32, 5, padding=2),
-            nn.ReLU(),  
-            nn.Conv2d(32, 16, 3, padding=1),
-            # nn.BatchNorm2d(8),
-            nn.ReLU(),
-            nn.Conv2d(16, 1, 3, padding=1),
-            # nn.BatchNorm2d(1),
+            nn.Conv2d(32, 1, 5, padding=2),
             nn.ReLU()
         )
 
@@ -119,7 +72,7 @@ class MRIConvolutionalNetwork(nn.Module):
         """
             Reconstruct images using only the neural network
         """
-        n = min(full_img_batch.size(0), 8)
+        n = min(full_img_batch.size(0), 16)
         result = torch.zeros(n,1,256,256)
 
         self._calculate_mask(sub_image_size, stride)
@@ -226,7 +179,65 @@ class MRIConvolutionalNetwork(nn.Module):
         """
             Reconstruct images using a neural network and a least squares problem incorporating the denoises image as regularization term
         """
-        pass
+
+        # Create the arrays to store the results in
+        n = min(full_img_batch.size(0), 8)
+        result = torch.zeros(n,1,256,256)
+        result_2 = torch.zeros(n,1,256,256)
+
+        # We first pass it through the neural network to obtained denoised images
+        # This also saves it to tensorboard
+        denoised_nn_images = self.reconstruct_full_image(full_img_batch, noisy_img_batch, writer, device, sub_image_size, stride)
+        denoised_nn_images = denoised_nn_images.numpy()
+
+        # We then run gradient descent on each of these images for several iterations
+        # Parameters for the gradient descent where we use the denoised image as initial guess
+        learning_rate_1 = 8e-6
+        max_iter_1 = 2000
+        lam_1 = 0.02
+        alpha_1 = 0.02
+
+        # Parameters for the gradient descent where we use the denoised image as additional regularizer
+        learning_rate_2 = 8e-6
+        max_iter_2 = 2000
+        lam_2 = 0.02
+        alpha_2 = 0.02
+
+        # Loop over the examples
+        for i in range(denoised_nn_images.shape[0]):
+            print(f"Denoising image {i}")
+            
+            # Create the data needed for gradient descent
+            full_img_batch[i, 0] /= torch.max(full_img_batch[i, 0])
+            noisy_img_batch[i, 0] /= torch.max(noisy_img_batch[i,0])
+            fourier_trans = cost.undersample_fourier(full_img_batch[i,0])
+
+            # We use this as initial guess for the gradient descent
+            img = denoised_nn_images[i,0]
+            img = img/np.max(np.abs(img))
+
+            result[i, 0] = torch.from_numpy(update_method.gradient_descent(fourier_trans, lam_1, alpha_1, max_iter_1, learning_rate_1, img))
+            result_2[i, 0] = torch.from_numpy(update_method.gradient_descent_nn(fourier_trans, img, lam_2, alpha_2, max_iter_2, learning_rate_2, noisy_img_batch[i, 0].numpy()))
+
+            # Normalize for Tensorboard, otherwise images wont display correctly
+            result[i, 0] /= torch.max(result[i, 0])
+            result_2[i, 0] /= torch.max(result_2[i, 0])
+
+        comparison = torch.cat([full_img_batch[:n], noisy_img_batch[:n],
+                                result])
+
+        comparison_2 = torch.cat([full_img_batch[:n], noisy_img_batch[:n],
+                                result_2])
+
+        img_grid = torchvision.utils.make_grid(comparison.cpu(), nrows=3)
+        img_grid_2 = torchvision.utils.make_grid(comparison_2.cpu(), nrows=3)
+
+        writer.add_image(f"Original images and neural network + gradient descent", img_grid) 
+        writer.add_image(f"Original images and neural network + reg denoising", img_grid_2) 
+
+        writer.close()
+
+        return result, result_2
 
 
 if __name__ == "__main__":
