@@ -1,9 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skimage import io, data
+from skimage import io, data, metrics
 from skimage.util import img_as_ubyte
 from skimage.transform import resize
+
+import os
 
 from cost import *
 
@@ -13,28 +15,13 @@ from cost import *
 
 epsilon = 1e-10
 
-def gradient_descent(y, lam, alpha=0.02, max_iter = 50, learning_rate = 1e-4, init=None):
+def gradient_descent_nn(y_1, y_2, lam, alpha, beta, max_iter = 50, learning_rate = 1e-4, init=None):
     """
         Performs regular gradient descent on the given cost function
     """
 
-    method = "combi"
-
-    if method == "TV":
-        gradient = gradient_cost_TV
-        cost = cost_TV
-    elif method == "tik":
-        gradient = gradient_cost_tik
-        cost = cost_tik
-    elif method == "l1":
-        gradient = gradient_cost_l1
-        cost = cost_l1
-    elif method == "combi":
-        gradient = gradient_cost_combination
-        cost = cost_combination
-    else:
-        print("ERROR, no method chosen")
-        return
+    gradient = gradient_cost_nn
+    cost = cost_nn
 
     optimizer = AdamOptimizer(eta = learning_rate)
 
@@ -44,19 +31,62 @@ def gradient_descent(y, lam, alpha=0.02, max_iter = 50, learning_rate = 1e-4, in
     else:
         m = np.zeros((256,256))
     
-    g = gradient(m, y, lam)
+    g = gradient(m, y_1, y_2, lam, alpha, beta)
 
-    for i in range(1, max_iter+1):
-        m = optimizer.update(i, m, g)
+    k = 1
+    cost_val_1 = cost(m, y_1, y_2, lam, alpha, beta)
+    cost_val_2 = cost_val_1 + 1
+
+    while k < max_iter and cost_val_1 <= cost_val_2:
+        m = optimizer.update(k, m, g)
+        g = gradient(m, y_1, y_2, lam, alpha, beta)
+
+        if k % 100 == 0:
+            print(f"{k:05d} with cost {cost_val_1:4f}", end="\r")
+            cost_val_2 = cost_val_1
+            cost_val_1 = cost(m, y_1, y_2, lam, alpha, beta)
+
+        k += 1
+
+    print()
+    return m
+
+def gradient_descent(y, lam, alpha=0.02, max_iter = 50, learning_rate = 1e-4, init=None):
+    """
+        Performs regular gradient descent on the given cost function
+    """
+
+    gradient = gradient_cost_combination
+    cost = cost_combination
+
+    optimizer = AdamOptimizer(eta = learning_rate)
+
+    # Initial values 
+    if init is not None:
+        m = init
+    else:
+        m = np.zeros((256,256))
+    
+    g = gradient(m, y, lam, alpha)
+
+    k = 1
+    cost_val_1 = cost(m, y, lam, alpha)
+    cost_val_2 = cost_val_1 + 1
+
+    while k < max_iter and cost_val_1 <= cost_val_2:
+        m = optimizer.update(k, m, g)
         g = gradient(m, y, lam)
 
-        if i % 1000 == 0:
-            cost_val = cost(m, y, lam)
-            print(f"Cost at iteration {i} is {cost_val}.", end = "\r")
+        if k % 100 == 0:
+            print(f"{k:05d} with cost {cost_val_1:4f}", end="\r")
+            cost_val_2 = cost_val_1
+            cost_val_1 = cost(m, y, lam, alpha)
+
+        k += 1
+            
     print()
     
     return m
-
 
 class AdamOptimizer():
     """
@@ -85,28 +115,15 @@ class AdamOptimizer():
         input -= self.eta*(m_corr/(np.sqrt(v_corr)+self.epsilon))
         return input
 
-def conjugate_gradient_descent(y, lam, max_iter=50, alpha=1e-4, beta=0.6, init=None):
+def conjugate_gradient_descent(y, lam, max_iter = 50, init=None):
     """
         Performs conjugate gradient descent on the given cost function
     """
+    alpha = 0.02
+    beta = 0.6
 
-    method = "combi"
-
-    if method == "TV":
-        gradient = gradient_cost_TV
-        cost = cost_TV
-    elif method == "tik":
-        gradient = gradient_cost_tik
-        cost = cost_tik
-    elif method == "l1":
-        gradient = gradient_cost_l1
-        cost = cost_l1
-    elif method == "combi":
-        gradient = gradient_cost_combination
-        cost = cost_combination
-    else:
-        print("ERROR, no method chosen")
-        return
+    gradient = gradient_cost_combination
+    cost = cost_combination
 
     # Initial values 
     if init is not None:
@@ -117,11 +134,16 @@ def conjugate_gradient_descent(y, lam, max_iter=50, alpha=1e-4, beta=0.6, init=N
     g = gradient(m, y, lam)
     d = -1*g
 
-    for i in range(max_iter):
+    cost_val_1 = cost(m, y, lam, 0)
+    cost_val_2 = cost_val_1 + 1
+
+    k=1
+
+    while k < max_iter and np.abs(cost_val_1 - cost_val_2) > 1e-3:
 
         t = 1
                 
-        while cost(m + t*d, y, lam) > cost(m, y, lam) + alpha * t * np.real(np.vdot(g,d)):
+        while cost(m + t*d, y, lam, 0) > cost(m, y, lam, 0) + alpha * t * np.real(np.vdot(g,d)) and t > 1e-6:
             # print(f"cost of search step {cost(m + t*d, y, lam)} and cost of rhs {cost(m, y, lam) + alpha * t * np.real(np.vdot(g,d))}")
             t = beta*t
 
@@ -133,8 +155,63 @@ def conjugate_gradient_descent(y, lam, max_iter=50, alpha=1e-4, beta=0.6, init=N
         d = -1*g_new + gamma*d
         g = g_new
 
-        # TODO: Check gradient to stop earlier!
-        print(f"Cost at iteration {i} is {cost(m, y, lam)}.")
+        print(f"{k:04d} with cost {cost_val_1:4f}", end="\r")
+        cost_val_2 = cost_val_1
+        cost_val_1 = cost(m, y, lam, 0)
+
+        k = k+1
+    
+    print()
+
+    return m
+
+def conjugate_gradient_descent_nn(y_1, y_2, lam, lam_2, max_iter = 50, init=None):
+    """
+        Performs conjugate gradient descent on the given cost function
+    """
+    alpha = 0.02
+    beta = 0.6
+
+    gradient = gradient_cost_nn
+    cost = cost_nn
+
+    # Initial values 
+    if init is not None:
+        m = init
+    else:
+        m = np.zeros((256,256))
+
+    g = gradient(m, y_1, y_2, lam, 0, lam_2)
+    d = -1*g
+
+    cost_val_1 = cost(m, y_1, y_2, lam, 0, lam_2)
+    cost_val_2 = cost_val_1 + 1
+
+    k=1
+
+    while k < max_iter and np.abs(cost_val_1 - cost_val_2) > 1e-3:
+
+        t = 1
+                
+        while cost(m + t*d, y_1, y_2, lam, 0, lam_2) > cost(m, y_1, y_2, lam, 0, lam_2) + alpha * t * np.real(np.vdot(g,d)) and t > 1e-6:
+            # print(f"cost of search step {cost(m + t*d, y, lam)} and cost of rhs {cost(m, y, lam) + alpha * t * np.real(np.vdot(g,d))}")
+            t = beta*t
+
+        # print(t)
+        m = m + t*d
+
+        g_new = gradient(m, y_1, y_2, lam, 0, lam_2)
+        gamma = (np.linalg.norm(g_new))**2/(np.sum(d*(g_new - g))+epsilon)
+        d = -1*g_new + gamma*d
+        g = g_new
+
+        print(f"{k:04d} with cost {cost_val_1:4f}", end="\r")
+        cost_val_2 = cost_val_1
+        cost_val_1 = cost(m, y_1, y_2, lam, 0, lam_2)
+
+        k = k+1
+    
+    print()
 
     return m
 
@@ -143,55 +220,94 @@ if __name__  == "__main__":
     #--------------------------------------------------
     # SETUP
     #--------------------------------------------------
+
+    #indices = [40, 100, 65 + 160, 100 + 160, 80 + 320, 120 + 320, 60 + 480, 100 + 480]
+
+    indices = [30, 40, 100, 110, 30+160, 65 + 160, 100 + 160, 115+160, 45 + 320, 80 + 320, 100 + 320, 120 + 320, 50 + 480, 60 + 480, 100 + 480, 120 + 480]
+
+    full  =  lambda n : os.path.join(r"C:\Users\daan\Desktop\datasets\MRI_5\transformed\denoise_validation\full", f"mri{n}.npy")
+    masked = lambda n : os.path.join(r"C:\Users\daan\Desktop\datasets\MRI_5\transformed\denoise_validation\masked", f"mri{n}.npy")
+
+    save_path = r"C:\Users\daan\Desktop\IPI_images\5zf"
+    save = lambda n : os.path.join(save_path, f"image{n}.png")
+
+    save_run = False
+
+    images_full = np.zeros((len(indices), 256, 256))
+    images_masked = np.zeros((len(indices), 256, 256))
+    images_restored = np.zeros((len(indices), 256, 256))
+    metric = np.zeros((len(indices), 3))
+    parameters = np.zeros(4)
+
+    learning_rate = 1e-5
+    max_iter = 5000
+    # TV
+    lam = 0.0025
+    # L1
+    alpha = 0
+
+    parameters[0] = learning_rate
+    parameters[1] = max_iter
+    parameters[2] = lam
+    parameters[3] = alpha
+
+    for i in range(len(indices)):
+        index = indices[i]
+        full_image = full(index)
+        masked_image = masked(index)
+
+        full_image = np.load(full_image)
+        masked_image = np.load(masked_image)
+
+        save_image = save(i)
+
+        img = full_image/np.max(np.abs(full_image))
+        images_masked[i] = masked_image/np.max(np.abs(masked_image))
+        images_full[i] = img
+
+        # Acquired underampled k-space data
+        y = undersample_fourier(img)
+
+        # Standard inverse image
+        # inverse_img_grad = images_masked[i]
+        #--------------------------------------------------
+
+        init = images_masked[i].copy()
+        # inverse_img_grad = gradient_descent(y, lam, alpha, max_iter, learning_rate, init)
+        inverse_img_grad = conjugate_gradient_descent(y, lam, max_iter, init)
+
+        if save_run: plt.imsave(save_image, inverse_img_grad, cmap="gray")
+
+        metric[i, 0] = metrics.mean_squared_error(img, inverse_img_grad)
+        metric[i, 1] = metrics.peak_signal_noise_ratio(img, inverse_img_grad)
+        metric[i, 2] = metrics.structural_similarity(img, inverse_img_grad)
+
+        images_restored[i] = inverse_img_grad
+
+    if save_run: 
+        np.savetxt(os.path.join(save_path, "metrics.csv"), metric, delimiter=",")
+        np.savetxt(os.path.join(save_path, "parameters.csv"), metric, delimiter=",")
     
-    # Difficult image
-    filename_training = "Y:\Datasets\OASIS I\disc1\OAS1_0001_MR1\PROCESSED\MPRAGE\SUBJ_111\OAS1_0001_MR1_mpr_n4_anon_sbj_111.img"    
-    img = io.imread(filename_training)
-    img = img[60]
-    
-    # Easy image
-    # img = img_as_ubyte(data.brain()[3])
+    print(metric)
+    print(np.mean(metric, axis=0))
+    print(np.std(metric, axis=0))
 
-    img = img/np.max(np.abs(img))
+    fig,ax = plt.subplots(3,3)
 
-    # plt.imshow(img, cmap="gray")
-    # plt.show()
+    for i in range(3):
 
-    # Fourier transform
-    fourier_img = np.fft.fftshift(np.fft.fft2(img))
+        ax[i, 0].imshow(images_full[i], cmap = "gray")
+        ax[i, 0].set_xticks([])
+        ax[i, 0].set_yticks([])
 
-    # Acquired underampled k-space data
-    y = undersample_fourier(img)
+        ax[i, 1].imshow(images_masked[i], cmap = "gray")
+        ax[i, 1].set_xticks([])
+        ax[i, 1].set_yticks([])
 
-    # Standard inverse image
-    inverse_img = np.abs(undersample_fourier_adjoint(y))
-    #--------------------------------------------------
-    learning_rate = 3e-5
+        ax[i, 2].imshow(images_restored[i], cmap = "gray")
+        ax[i, 2].set_xticks([])
+        ax[i, 2].set_yticks([])
 
-    max_iter = 3500
-    lam = 0.04
-    alpha = 0.02
-    
-    #inverse_img_grad = conjugate_gradient_descent(y, lam, max_iter, alpha=0.01, beta=0.6, init=inverse_img)
-    
-    init = inverse_img.copy()
-    inverse_img_grad = gradient_descent(y, lam, alpha, max_iter, learning_rate, init)
 
-    fig,ax = plt.subplots(1,3)
-
-    ax[0].imshow(img)
-    ax[0].set_title('original image')
-    ax[0].set_xticks([])
-    ax[0].set_yticks([])
-
-    ax[1].imshow(inverse_img)
-    ax[1].set_title('Masked inverted image')
-    ax[1].set_xticks([])
-    ax[1].set_yticks([])
-
-    ax[2].imshow(inverse_img_grad)
-    ax[2].set_title('Masked inverted image (grad desc)')
-    ax[2].set_xticks([])
-    ax[2].set_yticks([])
 
     plt.show()

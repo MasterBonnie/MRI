@@ -97,13 +97,30 @@ def cost_TV(m, y, lam):
 def gradient_cost_TV(m, y, lam):
     return undersample_fourier_adjoint(undersample_fourier(m) - y) + lam*grad_l1_DGT(m)
 
-def cost_combination(m, y, lam, alpha=0.02):
+def cost_nn_regularizer(m, y):
+    """
+    Params:
+        m: variable we are minimizing over
+        y: The denoised version of the image as predicted by the neural network
+    """
+    return 0.5*np.linalg.norm(m - y)**2
+
+def gradient_cost_nn_regularizer(m, y):
+    return m - y
+
+def cost_nn(m, y_1, y_2, lam, alpha, beta):
+    return cost_combination(m, y_1, lam, alpha) + beta*cost_nn_regularizer(m, y_2)
+
+def gradient_cost_nn(m, y_1, y_2, lam, alpha, beta):
+    return gradient_cost_combination(m, y_1, lam, alpha) + beta*gradient_cost_nn_regularizer(m, y_2)
+
+def cost_combination(m, y, lam, alpha=0):
     """
         Adds both the TV regularization and the L1 regularization, through the extra coefficient alpha
     """
     return 0.5*np.linalg.norm(undersample_fourier_adjoint(undersample_fourier(m) - y)) + lam * l1_DGT(m) + alpha * np.sum(np.abs(m))
 
-def gradient_cost_combination(m, y, lam, alpha=0.02):
+def gradient_cost_combination(m, y, lam, alpha=0):
     """
         See cost_combination
     """
